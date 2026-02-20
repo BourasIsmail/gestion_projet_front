@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { fetcher, api } from "@/lib/api"
 import type { Equipe, User } from "@/lib/types"
 import { initials, cn } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 
 const roleStyles: Record<string, string> = {
@@ -22,8 +23,10 @@ const roleStyles: Record<string, string> = {
 
 export default function EquipeDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
+    const { isMembre } = useAuth()
+    const canManage = !isMembre
     const { data: equipe, mutate } = useSWR<Equipe>(`/equipes/${id}`, fetcher, { revalidateOnFocus: true })
-    const { data: users } = useSWR<User[]>("/users", fetcher)
+    const { data: users } = useSWR<User[]>(canManage ? "/users" : null, fetcher)
     const [addOpen, setAddOpen] = useState(false)
     const [loading, setLoading] = useState(false)
 
@@ -101,31 +104,33 @@ export default function EquipeDetailPage({ params }: { params: Promise<{ id: str
                 <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-base">Membres de l{"'"}equipe</CardTitle>
-                        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-                            <DialogTrigger asChild>
-                                <Button size="sm" className="gap-2"><UserPlus className="h-4 w-4" />Ajouter un membre</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader><DialogTitle>Ajouter un membre</DialogTitle></DialogHeader>
-                                <form onSubmit={handleAddMember} className="flex flex-col gap-4">
-                                    <div className="flex flex-col gap-2">
-                                        <Label>Utilisateur</Label>
-                                        <select name="userId" required className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-                                            <option value="">Choisir un utilisateur...</option>
-                                            {users?.filter(u => u.actif).map((u) => <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        <Label>Role dans l{"'"}equipe</Label>
-                                        <select name="role" required className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-                                            <option value="CHEF_EQUIPE">Chef d{"'"}equipe</option>
-                                            <option value="MEMBRE">Membre</option>
-                                        </select>
-                                    </div>
-                                    <Button type="submit" disabled={loading}>{loading ? "Ajout..." : "Ajouter"}</Button>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
+                        {canManage && (
+                            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm" className="gap-2"><UserPlus className="h-4 w-4" />Ajouter un membre</Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader><DialogTitle>Ajouter un membre</DialogTitle></DialogHeader>
+                                    <form onSubmit={handleAddMember} className="flex flex-col gap-4">
+                                        <div className="flex flex-col gap-2">
+                                            <Label>Utilisateur</Label>
+                                            <select name="userId" required className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+                                                <option value="">Choisir un utilisateur...</option>
+                                                {users?.filter(u => u.actif).map((u) => <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <Label>Role dans l{"'"}equipe</Label>
+                                            <select name="role" required className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+                                                <option value="CHEF_EQUIPE">Chef d{"'"}equipe</option>
+                                                <option value="MEMBRE">Membre</option>
+                                            </select>
+                                        </div>
+                                        <Button type="submit" disabled={loading}>{loading ? "Ajout..." : "Ajouter"}</Button>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -142,15 +147,17 @@ export default function EquipeDetailPage({ params }: { params: Promise<{ id: str
                                 <Badge variant="outline" className={cn("text-[11px]", roleStyles[m.roleEquipe] || "")}>
                                     {m.roleEquipe === "CHEF_EQUIPE" ? "Chef" : "Membre"}
                                 </Badge>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
-                                    disabled={loading}
-                                    onClick={() => handleRemoveMember(m.userId)}
-                                >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
+                                {canManage && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                                        disabled={loading}
+                                        onClick={() => handleRemoveMember(m.userId)}
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                )}
                             </div>
                         ))}
                         {(!equipe.membres || equipe.membres.length === 0) && (

@@ -3,7 +3,8 @@
 import { useState } from "react"
 import useSWR from "swr"
 import Link from "next/link"
-import { Plus, Search, FolderKanban, Calendar, ArrowRight } from "lucide-react"
+import { Plus, Search, FolderKanban, Calendar, ArrowRight, Trash2 } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +23,8 @@ import { initialsFromName } from "@/lib/utils"
 import { toast } from "sonner"
 
 export default function ProjetsPage() {
+    const { user, isAdmin, isMembre } = useAuth()
+    const canCreate = !isMembre
     const { data: projets, mutate } = useSWR<Projet[]>("/projets", fetcher)
     const { data: equipes } = useSWR<Equipe[]>("/equipes", fetcher)
     const { data: types } = useSWR<TypeProjet[]>("/types-projet", fetcher)
@@ -29,6 +32,7 @@ export default function ProjetsPage() {
     const [filterStatut, setFilterStatut] = useState<string>("all")
     const [filterType, setFilterType] = useState<string>("all")
     const [dialogOpen, setDialogOpen] = useState(false)
+    const [deleting, setDeleting] = useState<number | null>(null)
 
     const filtered = projets?.filter((p) => {
         const matchSearch = p.nom.toLowerCase().includes(search.toLowerCase())
@@ -42,6 +46,30 @@ export default function ProjetsPage() {
         enCours: projets?.filter((p) => p.statut === "EN_COURS").length || 0,
         termines: projets?.filter((p) => p.statut === "TERMINE").length || 0,
         enRetard: projets?.filter((p) => p.tachesEnRetard > 0).length || 0,
+    }
+
+    function canDelete(p: Projet): boolean {
+        if (isAdmin) return true
+        if (isMembre) return false
+        // CHEF_EQUIPE: can only delete projects of their team
+        const myEquipes = equipes?.filter(eq => eq.membres?.some(m => m.userId === user?.id && m.roleEquipe === "CHEF_EQUIPE")) || []
+        return myEquipes.some(eq => eq.id === p.equipeId)
+    }
+
+    async function handleDelete(e: React.MouseEvent, projetId: number) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!confirm("Supprimer ce projet ? Cette action est irreversible.")) return
+        setDeleting(projetId)
+        try {
+            await api.delete(`/projets/${projetId}`)
+            toast.success("Projet supprime")
+            mutate()
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression")
+        } finally {
+            setDeleting(null)
+        }
     }
 
     async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
@@ -73,7 +101,7 @@ export default function ProjetsPage() {
                     <h1 className="text-2xl font-bold tracking-tight">Projets</h1>
                     <p className="text-sm text-muted-foreground">{statCounts.total} projets au total, {statCounts.enCours} en cours</p>
                 </div>
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                {canCreate && (<Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
                         <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />Nouveau projet</Button>
                     </DialogTrigger>
@@ -126,7 +154,7 @@ export default function ProjetsPage() {
                             <Button type="submit" className="mt-1">Creer le projet</Button>
                         </form>
                     </DialogContent>
-                </Dialog>
+                </Dialog>)}
             </div>
 
             {/* Quick stats */}
@@ -241,6 +269,18 @@ export default function ProjetsPage() {
                                                     <Calendar className="h-3 w-3" />
                                                     {new Date(p.dateFinPrevue).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                                                 </div>
+                                            )}
+                                            {canDelete(p) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    disabled={deleting === p.id}
+                                                    onClick={(e) => handleDelete(e, p.id)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                    <span className="sr-only">Supprimer</span>
+                                                </Button>
                                             )}
                                         </div>
                                     </div>

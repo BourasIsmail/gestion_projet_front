@@ -3,7 +3,8 @@
 import { useState } from "react"
 import useSWR from "swr"
 import Link from "next/link"
-import { Plus, Users, Search, ArrowRight } from "lucide-react"
+import { Plus, Users, Search, ArrowRight, Trash2 } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,11 +19,30 @@ import { initials } from "@/lib/utils"
 import { toast } from "sonner"
 
 export default function EquipesPage() {
+    const { isAdmin, isMembre } = useAuth()
+    const canCreate = !isMembre
     const { data: equipes, mutate } = useSWR<Equipe[]>("/equipes", fetcher)
     const [search, setSearch] = useState("")
     const [dialogOpen, setDialogOpen] = useState(false)
+    const [deleting, setDeleting] = useState<number | null>(null)
 
     const filtered = equipes?.filter((e) => e.nom.toLowerCase().includes(search.toLowerCase()))
+
+    async function handleDelete(e: React.MouseEvent, equipeId: number) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!confirm("Supprimer cette equipe ? Cette action est irreversible.")) return
+        setDeleting(equipeId)
+        try {
+            await api.delete(`/equipes/${equipeId}`)
+            toast.success("Equipe supprimee")
+            mutate()
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression")
+        } finally {
+            setDeleting(null)
+        }
+    }
 
     async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault()
@@ -44,19 +64,21 @@ export default function EquipesPage() {
                     <h1 className="text-2xl font-bold tracking-tight">Equipes</h1>
                     <p className="text-sm text-muted-foreground">{filtered?.length || 0} equipes</p>
                 </div>
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />Nouvelle equipe</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader><DialogTitle>Creer une equipe</DialogTitle></DialogHeader>
-                        <form onSubmit={handleCreate} className="flex flex-col gap-4">
-                            <div className="flex flex-col gap-2"><Label>Nom de l{"'"}equipe</Label><Input name="nom" required placeholder="Ex: Equipe DevOps" /></div>
-                            <div className="flex flex-col gap-2"><Label>Description</Label><Textarea name="description" placeholder="Decrivez l'equipe..." /></div>
-                            <Button type="submit">Creer l{"'"}equipe</Button>
-                        </form>
-                    </DialogContent>
-                </Dialog>
+                {canCreate && (
+                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />Nouvelle equipe</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader><DialogTitle>Creer une equipe</DialogTitle></DialogHeader>
+                            <form onSubmit={handleCreate} className="flex flex-col gap-4">
+                                <div className="flex flex-col gap-2"><Label>Nom de l{"'"}equipe</Label><Input name="nom" required placeholder="Ex: Equipe DevOps" /></div>
+                                <div className="flex flex-col gap-2"><Label>Description</Label><Textarea name="description" placeholder="Decrivez l'equipe..." /></div>
+                                <Button type="submit">Creer l{"'"}equipe</Button>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                )}
             </div>
 
             <div className="relative max-w-sm">
@@ -92,7 +114,21 @@ export default function EquipesPage() {
                                                 <p className="text-xs text-muted-foreground">{e.nombreMembres} membre{e.nombreMembres > 1 ? "s" : ""}</p>
                                             </div>
                                         </div>
-                                        <ArrowRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                                        <div className="flex items-center gap-1">
+                                            {isAdmin && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    disabled={deleting === e.id}
+                                                    onClick={(ev) => handleDelete(ev, e.id)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                    <span className="sr-only">Supprimer</span>
+                                                </Button>
+                                            )}
+                                            <ArrowRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                                        </div>
                                     </div>
 
                                     {e.description && (

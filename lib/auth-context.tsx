@@ -16,6 +16,7 @@ interface AuthContextType extends AuthState {
     logout: () => void
     isAdmin: boolean
     isChefEquipe: boolean
+    isMembre: boolean
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -53,9 +54,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const isAdmin = state.user?.roleGlobal === "ADMIN"
     const isChefEquipe = state.user?.roleGlobal === "CHEF_EQUIPE"
+    const isMembre = state.user?.roleGlobal === "MEMBRE"
 
     return (
-        <AuthContext.Provider value={{ ...state, login, logout, isAdmin, isChefEquipe }}>
+        <AuthContext.Provider value={{ ...state, login, logout, isAdmin, isChefEquipe, isMembre }}>
             {children}
         </AuthContext.Provider>
     )

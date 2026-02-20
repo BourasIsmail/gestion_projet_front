@@ -34,17 +34,17 @@ import { useAuth } from "@/lib/auth-context"
 import { initials } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 
-const navLinks = [
-    { title: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard },
-    { title: "Projets", href: "/projets", icon: FolderKanban },
-    { title: "Equipes", href: "/equipes", icon: Users },
-    { title: "Alertes", href: "/dashboard/alertes", icon: AlertTriangle },
-    { title: "Rapports", href: "/rapports", icon: FileText },
-]
-
 export function TopNavbar() {
     const pathname = usePathname()
-    const { user, logout, isAdmin } = useAuth()
+    const { user, logout, isAdmin, isMembre } = useAuth()
+
+    const navLinks = [
+        { title: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard },
+        { title: "Projets", href: "/projets", icon: FolderKanban },
+        { title: "Equipes", href: "/equipes", icon: Users },
+        { title: "Alertes", href: "/dashboard/alertes", icon: AlertTriangle },
+        ...(!isMembre ? [{ title: "Rapports", href: "/rapports", icon: FileText }] : []),
+    ]
     const [mobileOpen, setMobileOpen] = useState(false)
 
     function isActive(href: string) {

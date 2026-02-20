@@ -10,6 +10,8 @@ import { api, fetcher } from "@/lib/api"
 import type { Projet, Equipe, User as UserType } from "@/lib/types"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
+import { ShieldAlert } from "lucide-react"
 
 const reports = [
     { id: "global", title: "Rapport global", description: "Vue d'ensemble de tous les projets, equipes et taches", icon: Globe, needsParam: false, color: "text-primary bg-primary/10" },
@@ -20,11 +22,26 @@ const reports = [
 ]
 
 export default function RapportsPage() {
-    const { data: projets } = useSWR<Projet[]>("/projets", fetcher)
-    const { data: equipes } = useSWR<Equipe[]>("/equipes", fetcher)
-    const { data: users } = useSWR<UserType[]>("/users", fetcher)
+    const { isMembre } = useAuth()
+    const { data: projets } = useSWR<Projet[]>(isMembre ? null : "/projets", fetcher)
+    const { data: equipes } = useSWR<Equipe[]>(isMembre ? null : "/equipes", fetcher)
+    const { data: users } = useSWR<UserType[]>(isMembre ? null : "/users", fetcher)
     const [params, setParams] = useState<Record<string, string>>({})
     const [generating, setGenerating] = useState<string | null>(null)
+
+    if (isMembre) {
+        return (
+            <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+                    <ShieldAlert className="h-8 w-8 text-destructive" />
+                </div>
+                <div>
+                    <h2 className="text-lg font-semibold">Acces restreint</h2>
+                    <p className="text-sm text-muted-foreground">Vous n{"'"}avez pas les permissions pour acceder aux rapports.</p>
+                </div>
+            </div>
+        )
+    }
 
     async function handleDownload(reportId: string) {
         setGenerating(reportId)

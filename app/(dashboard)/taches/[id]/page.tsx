@@ -19,6 +19,7 @@ import { TaskStatusBadge } from "@/components/status-badge"
 import { fetcher, api } from "@/lib/api"
 import type { Tache } from "@/lib/types"
 import { initials, initialsFromName, cn } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 
 interface Commentaire {
@@ -41,6 +42,7 @@ const periodiciteLabels: Record<string, string> = {
 
 export default function TacheDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
+    const { isMembre } = useAuth()
     const { data: tache, mutate } = useSWR<Tache>(`/taches/${id}`, fetcher)
     const { data: commentaires, mutate: mutateComments } = useSWR<Commentaire[]>(`/taches/${id}/commentaires`, fetcher)
     const { data: occurrences } = useSWR<Tache[]>(tache?.estRecurrente ? `/taches/${id}/occurrences` : null, fetcher)

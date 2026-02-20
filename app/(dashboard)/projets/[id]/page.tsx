@@ -23,10 +23,12 @@ import { KanbanBoard } from "@/components/kanban-board"
 import { fetcher, api } from "@/lib/api"
 import type { Projet, Tache } from "@/lib/types"
 import { initialsFromName } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 
 export default function ProjetDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
+    const { isMembre } = useAuth()
     const { data: projet } = useSWR<Projet>(`/projets/${id}`, fetcher)
     const { data: taches, mutate: mutateTaches } = useSWR<Tache[]>(`/taches?projetId=${id}`, fetcher)
     const [addDialogOpen, setAddDialogOpen] = useState(false)
@@ -180,7 +182,7 @@ export default function ProjetDetailPage({ params }: { params: Promise<{ id: str
                         <TabsTrigger value="kanban" className="gap-1.5"><LayoutGrid className="h-3.5 w-3.5" />Kanban</TabsTrigger>
                         <TabsTrigger value="liste" className="gap-1.5"><List className="h-3.5 w-3.5" />Liste</TabsTrigger>
                     </TabsList>
-                    <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+                    {!isMembre && <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
                         <DialogTrigger asChild>
                             <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />Ajouter une tache</Button>
                         </DialogTrigger>
@@ -218,7 +220,7 @@ export default function ProjetDetailPage({ params }: { params: Promise<{ id: str
                                 <Button type="submit">Creer la tache</Button>
                             </form>
                         </DialogContent>
-                    </Dialog>
+                    </Dialog>}
                 </div>
 
                 <TabsContent value="kanban" className="mt-4">
