@@ -3,9 +3,10 @@
 import { use, useState } from "react"
 import useSWR from "swr"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
     ArrowLeft, Plus, Users, Calendar, LayoutGrid, List,
-    Clock, Repeat, CheckCircle2, AlertTriangle,
+    Clock, Repeat, CheckCircle2, AlertTriangle, Ban, Trash2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,8 +29,9 @@ import { toast } from "sonner"
 
 export default function ProjetDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
-    const { isMembre } = useAuth()
-    const { data: projet } = useSWR<Projet>(`/projets/${id}`, fetcher)
+    const { isAdmin, isMembre } = useAuth()
+    const router = useRouter()
+    const { data: projet, mutate } = useSWR<Projet>(`/projets/${id}`, fetcher)
     const { data: taches, mutate: mutateTaches } = useSWR<Tache[]>(`/taches?projetId=${id}`, fetcher)
     const [addDialogOpen, setAddDialogOpen] = useState(false)
 
@@ -58,6 +60,28 @@ export default function ProjetDetailPage({ params }: { params: Promise<{ id: str
         }
     }
 
+    async function handleCancel() {
+        if (!projet || !confirm("Annuler ce projet ? Le statut sera change en ANNULE.")) return
+        try {
+            await api.put(`/projets/${projet.id}`, { ...projet, statut: "ANNULE" })
+            toast.success("Projet annule")
+            mutate()
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erreur lors de l'annulation")
+        }
+    }
+
+    async function handleDeleteProjet() {
+        if (!projet || !confirm("Supprimer definitivement ce projet ? Cette action est irreversible.")) return
+        try {
+            await api.delete(`/projets/${projet.id}`)
+            toast.success("Projet supprime")
+            router.push("/projets")
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression")
+        }
+    }
+
     if (!projet) {
         return (
             <div className="flex flex-col gap-6">
@@ -79,6 +103,18 @@ export default function ProjetDetailPage({ params }: { params: Promise<{ id: str
                         <h1 className="text-2xl font-bold tracking-tight">{projet.nom}</h1>
                         <ProjectStatusBadge status={projet.statut} />
                         <PriorityBadge priority={projet.priorite} />
+                        {isAdmin && (
+                            <div className="ml-auto flex items-center gap-1">
+                                {projet.statut !== "ANNULE" && (
+                                    <Button variant="outline" size="sm" className="gap-1.5 text-[var(--warning-foreground)] border-[var(--warning)]/30 hover:bg-[var(--warning)]/10" onClick={handleCancel}>
+                                        <Ban className="h-3.5 w-3.5" />Annuler
+                                    </Button>
+                                )}
+                                <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={handleDeleteProjet}>
+                                    <Trash2 className="h-3.5 w-3.5" />Supprimer
+                                </Button>
+                            </div>
+                        )}
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0">{projet.typeProjetLibelle}</Badge>

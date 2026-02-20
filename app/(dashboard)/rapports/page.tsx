@@ -22,14 +22,15 @@ const reports = [
 ]
 
 export default function RapportsPage() {
-    const { isMembre } = useAuth()
-    const { data: projets } = useSWR<Projet[]>(isMembre ? null : "/projets", fetcher)
-    const { data: equipes } = useSWR<Equipe[]>(isMembre ? null : "/equipes", fetcher)
-    const { data: users } = useSWR<UserType[]>(isMembre ? null : "/users", fetcher)
+    const { isAdmin } = useAuth()
+    const canAccess = isAdmin
+    const { data: projets } = useSWR<Projet[]>(canAccess ? "/projets" : null, fetcher)
+    const { data: equipes } = useSWR<Equipe[]>(canAccess ? "/equipes" : null, fetcher)
+    const { data: users } = useSWR<UserType[]>(canAccess ? "/users" : null, fetcher)
     const [params, setParams] = useState<Record<string, string>>({})
     const [generating, setGenerating] = useState<string | null>(null)
 
-    if (isMembre) {
+    if (!canAccess) {
         return (
             <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">

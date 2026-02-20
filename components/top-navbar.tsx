@@ -43,7 +43,7 @@ export function TopNavbar() {
         { title: "Projets", href: "/projets", icon: FolderKanban },
         { title: "Equipes", href: "/equipes", icon: Users },
         { title: "Alertes", href: "/dashboard/alertes", icon: AlertTriangle },
-        ...(!isMembre ? [{ title: "Rapports", href: "/rapports", icon: FileText }] : []),
+        ...(isAdmin ? [{ title: "Rapports", href: "/rapports", icon: FileText }] : []),
     ]
     const [mobileOpen, setMobileOpen] = useState(false)
 

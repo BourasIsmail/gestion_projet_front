@@ -14,10 +14,12 @@ import { StatCard } from "@/components/stat-card"
 import { PriorityBadge } from "@/components/priority-badge"
 import { TaskStatusBadge } from "@/components/status-badge"
 import { fetcher } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 import type { DashboardStats, DashboardAlertes, Tache } from "@/lib/types"
 import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts"
 
 export default function DashboardPage() {
+    const { isAdmin } = useAuth()
     const { data: stats, isLoading } = useSWR<DashboardStats>("/dashboard/stats", fetcher)
     const { data: mesTaches } = useSWR<Tache[]>("/dashboard/mes-taches", fetcher)
     const { data: alertesData } = useSWR<DashboardAlertes>("/dashboard/alertes", fetcher)
@@ -60,9 +62,11 @@ export default function DashboardPage() {
                     <p className="text-sm text-muted-foreground">Vue d{"'"}ensemble de vos projets et taches</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button asChild variant="outline" size="sm">
-                        <Link href="/rapports">Generer un rapport</Link>
-                    </Button>
+                    {isAdmin && (
+                        <Button asChild variant="outline" size="sm">
+                            <Link href="/rapports">Generer un rapport</Link>
+                        </Button>
+                    )}
                     <Button asChild size="sm">
                         <Link href="/projets">Voir les projets</Link>
                     </Button>

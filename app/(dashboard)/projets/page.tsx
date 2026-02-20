@@ -3,7 +3,7 @@
 import { useState } from "react"
 import useSWR from "swr"
 import Link from "next/link"
-import { Plus, Search, FolderKanban, Calendar, ArrowRight, Trash2 } from "lucide-react"
+import { Plus, Search, FolderKanban, Calendar, ArrowRight, Trash2, Ban } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -34,7 +34,15 @@ export default function ProjetsPage() {
     const [dialogOpen, setDialogOpen] = useState(false)
     const [deleting, setDeleting] = useState<number | null>(null)
 
-    const filtered = projets?.filter((p) => {
+    // ADMIN: sees all. CHEF_EQUIPE: sees projects from their teams. MEMBRE: sees assigned projects only.
+    const myEquipeIds = equipes?.filter(eq => eq.membres?.some(m => m.userId === user?.id)).map(eq => eq.id) || []
+    const visibleProjets = isAdmin
+        ? projets
+        : isMembre
+            ? projets?.filter((p) => p.membres?.some((m) => m.userId === user?.id))
+            : projets?.filter((p) => myEquipeIds.includes(p.equipeId))
+
+    const filtered = visibleProjets?.filter((p) => {
         const matchSearch = p.nom.toLowerCase().includes(search.toLowerCase())
         const matchStatut = filterStatut === "all" || p.statut === filterStatut
         const matchType = filterType === "all" || String(p.typeProjetId) === filterType
@@ -42,10 +50,10 @@ export default function ProjetsPage() {
     })
 
     const statCounts = {
-        total: projets?.length || 0,
-        enCours: projets?.filter((p) => p.statut === "EN_COURS").length || 0,
-        termines: projets?.filter((p) => p.statut === "TERMINE").length || 0,
-        enRetard: projets?.filter((p) => p.tachesEnRetard > 0).length || 0,
+        total: visibleProjets?.length || 0,
+        enCours: visibleProjets?.filter((p) => p.statut === "EN_COURS").length || 0,
+        termines: visibleProjets?.filter((p) => p.statut === "TERMINE").length || 0,
+        enRetard: visibleProjets?.filter((p) => p.tachesEnRetard > 0).length || 0,
     }
 
     function canDelete(p: Projet): boolean {
@@ -56,10 +64,26 @@ export default function ProjetsPage() {
         return myEquipes.some(eq => eq.id === p.equipeId)
     }
 
+    async function handleCancel(e: React.MouseEvent, projet: Projet) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!confirm("Annuler ce projet ? Le statut sera change en ANNULE.")) return
+        setDeleting(projet.id)
+        try {
+            await api.put(`/projets/${projet.id}`, { ...projet, statut: "ANNULE" })
+            toast.success("Projet annule")
+            mutate()
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erreur lors de l'annulation")
+        } finally {
+            setDeleting(null)
+        }
+    }
+
     async function handleDelete(e: React.MouseEvent, projetId: number) {
         e.preventDefault()
         e.stopPropagation()
-        if (!confirm("Supprimer ce projet ? Cette action est irreversible.")) return
+        if (!confirm("Supprimer definitivement ce projet ? Cette action est irreversible.")) return
         setDeleting(projetId)
         try {
             await api.delete(`/projets/${projetId}`)
@@ -270,6 +294,19 @@ export default function ProjetsPage() {
                                                     {new Date(p.dateFinPrevue).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                                                 </div>
                                             )}
+                                            {isAdmin && p.statut !== "ANNULE" && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-[var(--warning-foreground)] opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    disabled={deleting === p.id}
+                                                    onClick={(e) => handleCancel(e, p)}
+                                                    title="Annuler le projet"
+                                                >
+                                                    <Ban className="h-3.5 w-3.5" />
+                                                    <span className="sr-only">Annuler</span>
+                                                </Button>
+                                            )}
                                             {canDelete(p) && (
                                                 <Button
                                                     variant="ghost"
@@ -277,6 +314,7 @@ export default function ProjetsPage() {
                                                     className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                                                     disabled={deleting === p.id}
                                                     onClick={(e) => handleDelete(e, p.id)}
+                                                    title="Supprimer definitivement"
                                                 >
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                     <span className="sr-only">Supprimer</span>
